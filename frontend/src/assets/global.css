@@ -18,11 +18,11 @@
   --clock-dial-text-active: #72fa60;
   --clock-hand: #60a5fa;
 
-  --text-primary: #f1f5f9;
+  --text-primary: #f8fafc;
   --text-secondary: #e2e8f0;
   --text-muted: #94a3b8;
-  --text-dim: #64748b;
-  --text-dimmer: #475569;
+  --text-dim: #cbd5e1;
+  --text-dimmer: #cbd5e1a6;
 
   --accent: #3b82f6;
   --accent-light: #c9fa60;
@@ -186,7 +186,7 @@ body {
 .navbar__brand {
   font-size: 16px;
   font-weight: 700;
-  color: var(--accent-light);
+  color: var(--accent-lighter);
   letter-spacing: 0.2px;
   white-space: nowrap;
 }
@@ -423,12 +423,13 @@ body {
 .btn--today {
   padding: 6px 14px;
   font-size: 13px;
+  color: var(--accent-light)
 }
 
 /* Shared disabled state for buttons (e.g. Today when already on today) */
 .btn:disabled,
 .btn--today:disabled {
-  opacity: 0.4;
+  opacity: 0.5;
   cursor: default;
 }
 
