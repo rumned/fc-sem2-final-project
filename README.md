@@ -1,5 +1,6 @@
 Forward College Semester 2 Final Project (CU2 + CU6)
-ClockScheduler - a scheduler, but shaped like a clock. Might help to visualize your timeblocks in a day
+- ClockScheduler - a scheduler, but shaped like a clock. Might help to visualize your timeblocks in a day
+- Built using MERN stack
 
 Features:
 - Click on the clock to create a new schedule
