@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useNotifications } from "../../context/NotificationsContext";
 
 const NAV_ITEMS = [
-  { label: "Clock",     path: "/" },
+  { label: "Schedule",     path: "/" },
   { label: "Calendars", path: "/calendars" },
   { label: "Invites",   path: "/invites" },
   { label: "Analytics", path: "/analytics" },

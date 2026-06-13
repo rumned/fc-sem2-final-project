@@ -1370,6 +1370,7 @@ body {
   background: var(--bg-card);
   color: var(--text-primary);
   box-shadow: 0 0 0 1px var(--border-mid);
+  border: 1px solid var(--accent);
 }
 
 /* Shared wrapper so agenda/timeline match the rest of the layout width */

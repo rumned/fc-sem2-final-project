@@ -287,6 +287,7 @@ const ClockDashboard = () => {
             selectedDate={selectedDate}
             selectedId={selectedEvent?.id}
             onSelect={(ev) => { setSelectedEvent(ev); setForm(null); }}
+            onGridClick={openNewEventForm}
           />
         </div>
       )}
