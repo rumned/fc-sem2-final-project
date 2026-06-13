@@ -23,6 +23,10 @@ export const ReminderProvider = ({ children }) => {
   // Toggle is persisted so it survives navigation and full page reloads —
   // same localStorage convention the app uses for the session token/user.
   const [remindersEnabled, setRemindersEnabled] = useState(() => localStorage.getItem("remindersEnabled") === "true");
+  // Demo mode reveals test-only affordances (e.g. the "Test reminder" button)
+  // that are hidden during normal use. Persisted so it survives navigation and
+  // reloads — handy for flipping it on right before a presentation.
+  const [demoMode, setDemoMode] = useState(() => localStorage.getItem("demoMode") === "true");
   const [endedEvent,  setEndedEvent]  = useState(null);
   const [reminderMsg, setReminderMsg] = useState("");
   const msgTimer = useRef();
@@ -41,6 +45,10 @@ export const ReminderProvider = ({ children }) => {
     localStorage.setItem("remindersEnabled", String(remindersEnabled));
   }, [remindersEnabled]);
 
+  useEffect(() => {
+    localStorage.setItem("demoMode", String(demoMode));
+  }, [demoMode]);
+
   // When reminders are on, make sure today's events are loaded even if the
   // user never opens the dashboard — otherwise the loop has nothing to check.
   useEffect(() => {
@@ -52,6 +60,7 @@ export const ReminderProvider = ({ children }) => {
   });
 
   const toggleReminders = useCallback(() => setRemindersEnabled((v) => !v), []);
+  const toggleDemoMode  = useCallback(() => setDemoMode((v) => !v), []);
 
   // Fire a sample alert and leave an in-app status note (alongside the alert)
   // so the user has a record the test ran after dismissing the dialog.
@@ -99,7 +108,7 @@ export const ReminderProvider = ({ children }) => {
   };
 
   return (
-    <ReminderContext.Provider value={{ remindersEnabled, toggleReminders, runTest, reminderMsg, registerWhatNextHandler }}>
+    <ReminderContext.Provider value={{ remindersEnabled, toggleReminders, runTest, reminderMsg, registerWhatNextHandler, demoMode, toggleDemoMode }}>
       {children}
       <WhatNextModal endedEvent={endedEvent} onSelect={handleWhatNext} onSkip={() => setEndedEvent(null)} />
     </ReminderContext.Provider>

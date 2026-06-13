@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../context/NotificationsContext";
 import * as calendarsApi from "../api/calendars";
 import { countMembers } from "../utils/members";
 
@@ -14,6 +15,7 @@ const EMPTY_FORM = { name: "", description: "", color: CALENDAR_COLORS[0] };
 const MyCalendars = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { refreshCalendars } = useNotifications();
   const [calendars,  setCalendars]  = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState("");
@@ -50,6 +52,7 @@ const MyCalendars = () => {
     try {
       const res = await calendarsApi.createCalendar(calForm);
       setCalendars((prev) => [...prev, res.data]);
+      refreshCalendars();
       setShowForm(false);
       setCalForm(EMPTY_FORM);
     } catch (err) {
@@ -90,7 +93,7 @@ const MyCalendars = () => {
               className="form-input"
               value={calForm.name}
               onChange={(e) => setCalForm({ ...calForm, name: e.target.value })}
-              placeholder="e.g. Class 10A, Work, Family"
+              placeholder="e.g. Semester Schedule, Sprint Routine"
               autoFocus
             />
 

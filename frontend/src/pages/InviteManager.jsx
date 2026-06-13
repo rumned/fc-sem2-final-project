@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from "react";
 import * as invitesApi from "../api/invites";
+import { useCalendar } from "../context/CalendarContext";
+import { useNotifications } from "../context/NotificationsContext";
 
 const InviteManager = () => {
+  const { clearCache } = useCalendar();
+  const { refreshInvites, refreshCalendars } = useNotifications();
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState("");
@@ -26,6 +30,16 @@ const InviteManager = () => {
       setInvites((prev) =>
         prev.map((inv) => (inv._id === id ? { ...inv, status: res.data.status } : inv))
       );
+
+      // Accepting an invite adds this user to the calendar, exposing its
+      // existing events. Clearing the cached events forces the Clock dashboard
+      // and Agenda to re-fetch and show them right away — no refresh needed.
+      if (status === "accepted") {
+        clearCache();
+        refreshCalendars();
+      }
+      // Keep the navbar invite badge in sync with the new status.
+      refreshInvites();
     } catch (err) {
       console.error("Failed to respond:", err.message);
     }

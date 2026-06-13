@@ -1,7 +1,7 @@
 import React from "react";
 import { CATEGORIES } from "../../utils/constants";
 
-const EventForm = ({ form, setForm, onSave, onDelete, saving = false, error = "" }) => {
+const EventForm = ({ form, setForm, onSave, onDelete, saving = false, error = "", note = "" }) => {
   if (!form) return null;
 
   return (
@@ -13,6 +13,9 @@ const EventForm = ({ form, setForm, onSave, onDelete, saving = false, error = ""
         <div className="modal__title">
           {form.id ? "Edit Event" : "New Event"}
         </div>
+
+        {/* Ownership note — shown when editing an event the user didn't create */}
+        {note && <div className="form-note">{note}</div>}
 
         {/* Title */}
         <label className="form-label">Title</label>
@@ -47,7 +50,7 @@ const EventForm = ({ form, setForm, onSave, onDelete, saving = false, error = ""
         <label className="form-label">Category</label>
         <select
           className="form-input"
-          value={form.category || "other"}
+          value={form.category || "work"}
           onChange={(e) => {
             const cat = CATEGORIES.find((c) => c.id === e.target.value);
             setForm({ ...form, category: e.target.value, color: cat?.color || "var(--theme-other)" });

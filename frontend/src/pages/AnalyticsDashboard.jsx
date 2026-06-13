@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useCalendar } from "../context/CalendarContext";
 import { CATEGORIES } from "../utils/constants";
+import { toDateStr } from "../utils/clockMath";
 
 const getDuration = (ev) =>
   (ev.endHour * 60 + ev.endMinute - ev.startHour * 60 - ev.startMinute) / 60;
@@ -16,11 +17,13 @@ const sumByCategory = (evs) => {
   return result;
 };
 
-const getMonday = () => {
+// Monday (local, midnight) of the week `offset` weeks away from the current
+// one. offset 0 = this week, -1 = last week, +1 = next week, etc.
+const getWeekMonday = (offset = 0) => {
   const now = new Date();
   const day = now.getDay() || 7;
   const monday = new Date(now);
-  monday.setDate(now.getDate() - day + 1);
+  monday.setDate(now.getDate() - day + 1 + offset * 7);
   monday.setHours(0, 0, 0, 0);
   return monday;
 };
@@ -46,34 +49,61 @@ const CategoryBar = ({ cat, hours, maxHours }) => {
 };
 
 const AnalyticsDashboard = () => {
-  const { events } = useCalendar();
+  const { events, fetchEventsByRange } = useCalendar();
+  const [weekOffset, setWeekOffset] = useState(0);
   const [weekTotals, setWeekTotals] = useState({});
   const [dayTotals, setDayTotals] = useState([]);
 
-  useEffect(() => {
-    const monday = getMonday();
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 7);
+  const monday = getWeekMonday(weekOffset);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
 
+  // Load the displayed week's events. Analytics may be the first page a user
+  // opens, so we can't assume the events are already cached — fetch the range
+  // whenever the week changes. The context keeps events from other ranges.
+  useEffect(() => {
+    fetchEventsByRange(toDateStr(monday), toDateStr(sunday));
+    // monday/sunday are derived from weekOffset; depending on it is enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekOffset, fetchEventsByRange]);
+
+  useEffect(() => {
+    const start = getWeekMonday(weekOffset);
+    const endExclusive = new Date(start);
+    endExclusive.setDate(start.getDate() + 7);
+
+    const startStr = toDateStr(start);
+    const endStr = toDateStr(endExclusive);
+
+    // Compare on the YYYY-MM-DD strings (events store dates that way) so the
+    // window matches the user's local week rather than a UTC-shifted one.
     const weekEvents = events.filter((ev) => {
       if (ev.isAllDay) return false;
-      const d = new Date(ev.date);
-      return d >= monday && d < sunday;
+      return ev.date >= startStr && ev.date < endStr;
     });
 
     setWeekTotals(sumByCategory(weekEvents));
 
     const daily = Array.from({ length: 7 }, () => ({}));
     for (let i = 0; i < 7; i++) {
-      const dTarget = new Date(monday);
-      dTarget.setDate(monday.getDate() + i);
-      const dStr = dTarget.toISOString().split("T")[0];
+      const dTarget = new Date(start);
+      dTarget.setDate(start.getDate() + i);
+      const dStr = toDateStr(dTarget);
 
       const evsForDay = weekEvents.filter((ev) => ev.date === dStr);
       daily[i] = sumByCategory(evsForDay);
     }
     setDayTotals(daily);
-  }, [events]);
+  }, [events, weekOffset]);
+
+  const fmtDay = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const weekRangeLabel = `${fmtDay(monday)} – ${fmtDay(sunday)}`;
+  const weekRelativeLabel =
+    weekOffset === 0 ? "This week"
+    : weekOffset === -1 ? "Last week"
+    : weekOffset === 1 ? "Next week"
+    : weekOffset < 0 ? `${-weekOffset} weeks ago`
+    : `In ${weekOffset} weeks`;
 
   const totalWeekHours = Object.values(weekTotals).reduce((a, b) => a + b, 0);
   const maxCatHours = Math.max(...Object.values(weekTotals), 0);
@@ -88,6 +118,35 @@ const AnalyticsDashboard = () => {
       <div className="analytics-header">
         <div className="page-header__eyebrow">Performance Metrics</div>
         <div className="page-header__title page-header__title--sm">Time Analytics</div>
+      </div>
+
+      {/* Week scroller — move between weeks; "This week" jumps back to today's */}
+      <div className="analytics-week-nav">
+        <button
+          className="btn btn--ghost"
+          onClick={() => setWeekOffset((o) => o - 1)}
+          aria-label="Previous week"
+        >
+          ◀
+        </button>
+        <div className="analytics-week-nav__label">
+          <span className="analytics-week-nav__range">{weekRangeLabel}</span>
+          <span className="analytics-week-nav__rel">{weekRelativeLabel}</span>
+        </div>
+        <button
+          className="btn btn--ghost"
+          onClick={() => setWeekOffset((o) => o + 1)}
+          aria-label="Next week"
+        >
+          ▶
+        </button>
+        <button
+          className="btn btn--ghost btn--today"
+          onClick={() => setWeekOffset(0)}
+          disabled={weekOffset === 0}
+        >
+          This week
+        </button>
       </div>
 
       <div className="section-label">Weekly Overview</div>

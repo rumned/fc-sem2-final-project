@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../context/NotificationsContext";
 import ClockFace from "../components/clock/ClockFace";
 import AllDayBanner from "../components/clock/AllDayBanner";
 import EventList from "../components/events/EventList";
@@ -8,6 +9,7 @@ import EventForm from "../components/events/EventForm";
 import { CATEGORIES } from "../utils/constants";
 import { formatTime, todayStr, shiftDateStr, parseDateLocal } from "../utils/clockMath";
 import { getCountedMembers } from "../utils/members";
+import { eventOwnershipNote, permissionErrorMessage } from "../utils/permissions";
 import * as calendarsApi from "../api/calendars";
 import * as eventsApi from "../api/events";
 import * as invitesApi from "../api/invites";
@@ -23,6 +25,7 @@ const SharedCalendar = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { refreshCalendars } = useNotifications();
 
   const [calendar,      setCalendar]      = useState(null);
   const [events,        setEvents]        = useState([]);
@@ -32,6 +35,7 @@ const SharedCalendar = () => {
 
   const [selectedDate,  setSelectedDate]  = useState(() => todayStr());
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [actionError,   setActionError]   = useState(""); // feedback when a delete is rejected
 
   // Event form
   const [form,      setForm]      = useState(null);
@@ -95,6 +99,11 @@ const SharedCalendar = () => {
     if (calendar && canSeeInvites) loadInvites();
   }, [calendar, canSeeInvites, loadInvites]);
 
+  // Clear any "can't delete" feedback when the user moves to a different event.
+  useEffect(() => {
+    setActionError("");
+  }, [selectedEvent?.id]);
+
   // ── Date navigation ──────────────────────────────────────────────────────
   const changeDate = (amount) => {
     setSelectedDate((d) => shiftDateStr(d, amount));
@@ -156,7 +165,7 @@ const SharedCalendar = () => {
       }
       setForm(null);
     } catch (err) {
-      setFormError(err.message || "Failed to save event.");
+      setFormError(payload.id ? permissionErrorMessage(err, "edit") : (err.message || "Couldn’t save the event."));
     } finally {
       setSaving(false);
     }
@@ -164,13 +173,15 @@ const SharedCalendar = () => {
 
   const handleDeleteEvent = async (eventId) => {
     if (!window.confirm("Delete this event?")) return;
+    setActionError("");
     try {
       await eventsApi.deleteEvent(eventId);
       setEvents((prev) => prev.filter((e) => e.id !== eventId));
       setForm(null);
       setSelectedEvent(null);
     } catch (err) {
-      setFormError(err.message || "Failed to delete event.");
+      setActionError(permissionErrorMessage(err, "delete"));
+      setForm(null);
     }
   };
 
@@ -203,6 +214,7 @@ const SharedCalendar = () => {
     if (!window.confirm("Delete this calendar and all of its events? This cannot be undone.")) return;
     try {
       await calendarsApi.deleteCalendar(id);
+      refreshCalendars();
       navigate("/calendars");
     } catch (err) {
       setError(err.message || "Failed to delete calendar.");
@@ -269,22 +281,17 @@ const SharedCalendar = () => {
   const members      = getCountedMembers(calendar);
   const pendingSent  = invites.filter((i) => i.status === "pending");
 
+  // Note shown when an event was created by someone other than the viewer —
+  // e.g. another member's event, or one an admin assigned to this calendar.
+  const selectedNote = selectedEvent ? eventOwnershipNote(selectedEvent, user) : "";
+  const formNote     = form?.id ? eventOwnershipNote(form, user) : "";
+
   return (
     <div className="page-container">
 
       {/* ── Header ── */}
       <div className="page-header">
         <button className="btn btn--ghost" onClick={() => navigate(-1)}>◀ Back</button>
-        {(canEditSettings || canDelete) && (
-          <div className="manage-header-actions">
-            {canEditSettings && (
-              <button className="btn btn--sm" onClick={openEditCal}>Edit</button>
-            )}
-            {canDelete && (
-              <button className="btn--sm-danger" onClick={handleDeleteCal}>Delete</button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* ── Calendar info ── */}
@@ -297,6 +304,16 @@ const SharedCalendar = () => {
             {calendar.description ? ` · ${calendar.description}` : ""}
           </div>
         </div>
+        {(canEditSettings || canDelete) && (
+          <div className="card__actions">
+            {canEditSettings && (
+              <button className="btn btn--sm" onClick={openEditCal}>Edit</button>
+            )}
+            {canDelete && (
+              <button className="btn--sm-danger" onClick={handleDeleteCal}>Delete</button>
+            )}
+          </div>
+        )}
       </div>
 
       {!canManageEvents && (
@@ -356,6 +373,10 @@ const SharedCalendar = () => {
               <button className="btn--ghost" onClick={() => setSelectedEvent(null)}>×</button>
             </div>
           </div>
+
+          {/* Ownership note + rejection feedback for events the user can't manage */}
+          {selectedNote && <div className="detail-panel__note">{selectedNote}</div>}
+          {actionError && <div className="detail-panel__action-error">{actionError}</div>}
         </div>
       )}
 
@@ -373,6 +394,7 @@ const SharedCalendar = () => {
           onDelete={handleDeleteEvent}
           saving={saving}
           error={formError}
+          note={formNote}
         />
       )}
 

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CalendarProvider } from "./context/CalendarContext";
+import { NotificationsProvider } from "./context/NotificationsContext";
 import { ReminderProvider } from "./context/ReminderContext";
 import Navbar from "./components/shared/Navbar";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
@@ -67,11 +68,13 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <CalendarProvider>
-          <ReminderProvider>
-            <AppRoutes />
-          </ReminderProvider>
-        </CalendarProvider>
+        <NotificationsProvider>
+          <CalendarProvider>
+            <ReminderProvider>
+              <AppRoutes />
+            </ReminderProvider>
+          </CalendarProvider>
+        </NotificationsProvider>
       </AuthProvider>
     </BrowserRouter>
   );

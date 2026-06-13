@@ -98,6 +98,15 @@ const createEvent = async (req, res, next) => {
     }
 
     const event = await Event.create(req.body);
+
+    // Return the event with the same populated shape a GET /events returns, so
+    // the client can drop the freshly-saved event straight into its list with
+    // full creator/calendar details — no refetch (page refresh) needed.
+    await event.populate([
+      { path: "createdBy", select: "name email" },
+      { path: "calendar", select: "name color" },
+    ]);
+
     res.status(201).json({ success: true, data: event });
   } catch (error) {
     next(error);
@@ -131,7 +140,9 @@ const updateEvent = async (req, res, next) => {
     event = await Event.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
-    });
+    })
+      .populate("createdBy", "name email")
+      .populate("calendar", "name color");
 
     res.status(200).json({ success: true, data: event });
   } catch (error) {

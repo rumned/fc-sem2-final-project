@@ -94,6 +94,14 @@ export const CalendarProvider = ({ children }) => {
     });
   };
 
+  // Drop every cached event and clear the fetched-date cache. Used when the set
+  // of calendars the user can see changes (e.g. after accepting an invite) so
+  // the next visit to a day re-fetches and picks up the newly shared events.
+  const clearCache = useCallback(() => {
+    setEvents([]);
+    setFetchedDates(new Set());
+  }, []);
+
   return (
     <CalendarContext.Provider value={{
       events,
@@ -105,6 +113,7 @@ export const CalendarProvider = ({ children }) => {
       updateEvent,
       deleteEvent,
       invalidateDate,
+      clearCache,
     }}>
       {children}
     </CalendarContext.Provider>

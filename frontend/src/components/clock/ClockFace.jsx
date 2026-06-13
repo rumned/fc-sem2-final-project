@@ -1,17 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { polarToCartesian, timeToAngle, angleToTime, describeArc } from "../../utils/clockMath";
 import { assignArcOffsets } from "../../utils/arcOffset";
 import { CX, CY, OUTER_R, INNER_R, ARC_W, GAP } from "../../utils/constants";
+import { useReminderSettings } from "../../context/ReminderContext";
 import ClockDial from "./ClockDial";
 import ClockArc from "./ClockArc";
 
 const ClockFace = ({ events, onClockClick, onArcClick }) => {
+  const { demoMode } = useReminderSettings() || {};
   const [hoveredId, setHoveredId] = useState(null);
   const [customTime, setCustomTime] = useState("");
 
+  // The custom-time picker is a demo-only tool (it freezes the clock hand at a
+  // chosen time so you can show how arcs render at any hour). Clear it whenever
+  // demo mode is switched off so the clock snaps back to the real time.
+  useEffect(() => {
+    if (!demoMode) setCustomTime("");
+  }, [demoMode]);
+
+  // Only honour the picked time while demo mode is on.
+  const effectiveCustomTime = demoMode ? customTime : "";
+
   let nowHour, nowMinute;
-  if (customTime) {
-    const [h, m] = customTime.split(":");
+  if (effectiveCustomTime) {
+    const [h, m] = effectiveCustomTime.split(":");
     nowHour = parseInt(h, 10);
     nowMinute = parseInt(m, 10);
   } else {
@@ -63,15 +75,17 @@ const ClockFace = ({ events, onClockClick, onArcClick }) => {
 
   return (
     <div className={"clock-face"}>
-      <div className={"clock-custom-time"}>
-        <input
-          type="time"
-          value={customTime}
-          onChange={(e) => setCustomTime(e.target.value)}
-          className={"clock-custom-time__input"}
-        />
-        <button className={"btn btn--medium"} onClick={() => setCustomTime("")}>Reset</button>
-      </div>
+      {demoMode && (
+        <div className={"clock-custom-time"}>
+          <input
+            type="time"
+            value={customTime}
+            onChange={(e) => setCustomTime(e.target.value)}
+            className={"clock-custom-time__input"}
+          />
+          <button className={"btn btn--medium"} onClick={() => setCustomTime("")}>Reset</button>
+        </div>
+      )}
 
       <svg
         className="clock-face__svg"

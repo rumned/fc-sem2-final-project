@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useNotifications } from "../../context/NotificationsContext";
 
 const NAV_ITEMS = [
   { label: "Clock",     path: "/" },
@@ -11,12 +12,39 @@ const NAV_ITEMS = [
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const { pendingInviteCount, calendarCount, refreshAll } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Re-check the badge counts whenever the route changes, so invites received
+  // or calendars joined elsewhere show up without a manual refresh.
+  useEffect(() => {
+    refreshAll();
+  }, [location.pathname, refreshAll]);
+
   const isActive = (path) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+
+  // Small count badge shown next to a nav item. Returns null when there's
+  // nothing to show so the label stays clean.
+  const badgeFor = (path) => {
+    if (path === "/invites" && pendingInviteCount > 0) {
+      return (
+        <span className="nav-item__badge nav-item__badge--invite" aria-label={`${pendingInviteCount} pending invites`}>
+          {pendingInviteCount}
+        </span>
+      );
+    }
+    if (path === "/calendars" && calendarCount > 0) {
+      return (
+        <span className="nav-item__badge nav-item__badge--calendar" aria-label={`${calendarCount} calendars`}>
+          {calendarCount}
+        </span>
+      );
+    }
+    return null;
+  };
 
   const navTo = (path) => {
     navigate(path);
@@ -44,6 +72,7 @@ const Navbar = () => {
             onClick={() => navTo(path)}
           >
             {label}
+            {badgeFor(path)}
           </button>
         ))}
       </div>
@@ -54,18 +83,21 @@ const Navbar = () => {
         <button className="navbar__btn-logout" onClick={handleLogout}>Logout</button>
       </div>
 
-      {/* ── Mobile: username + hamburger ── */}
+      {/* ── Mobile: app title + username + hamburger ── */}
       <div className="navbar__mobile-header">
-        <span className="navbar__username">{user?.name}</span>
-        <button
-          className="hamburger"
-          onClick={() => setMenuOpen((o) => !o)}
-          aria-label="Toggle menu"
-        >
-          <span className={`hamburger__line ${menuOpen ? "hamburger__line--open-1" : ""}`} />
-          <span className={`hamburger__line ${menuOpen ? "hamburger__line--open-2" : ""}`} />
-          <span className={`hamburger__line ${menuOpen ? "hamburger__line--open-3" : ""}`} />
-        </button>
+        <span className="navbar__brand">ClockScheduler</span>
+        <div className="navbar__mobile-right">
+          <span className="navbar__username">{user?.name}</span>
+          <button
+            className="hamburger"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label="Toggle menu"
+          >
+            <span className={`hamburger__line ${menuOpen ? "hamburger__line--open-1" : ""}`} />
+            <span className={`hamburger__line ${menuOpen ? "hamburger__line--open-2" : ""}`} />
+            <span className={`hamburger__line ${menuOpen ? "hamburger__line--open-3" : ""}`} />
+          </button>
+        </div>
       </div>
 
       {/* ── Mobile drawer ── */}
@@ -78,6 +110,7 @@ const Navbar = () => {
               onClick={() => navTo(path)}
             >
               {label}
+              {badgeFor(path)}
             </button>
           ))}
           <div className="nav-drawer__divider" />

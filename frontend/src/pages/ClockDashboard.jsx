@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useCalendar } from "../context/CalendarContext";
+import { useAuth } from "../context/AuthContext";
 import { CATEGORIES } from "../utils/constants";
 import ClockFace from "../components/clock/ClockFace";
 import AllDayBanner from "../components/clock/AllDayBanner";
@@ -8,6 +9,7 @@ import EventList from "../components/events/EventList";
 import AgendaView from "../components/events/AgendaView";
 import TimelineView from "../components/events/TimelineView";
 import { formatTime, todayStr, shiftDateStr, parseDateLocal } from "../utils/clockMath";
+import { eventOwnershipNote, permissionErrorMessage } from "../utils/permissions";
 import { useReminderSettings } from "../context/ReminderContext";
 
 // Derive arc color directly from category — no manual color picker needed
@@ -18,11 +20,13 @@ const getCategoryColor = (categoryId) => {
 
 const ClockDashboard = () => {
   const { events, loading, fetchEventsByDate, addEvent, updateEvent, deleteEvent } = useCalendar();
-  const { remindersEnabled, toggleReminders, runTest, reminderMsg, registerWhatNextHandler } = useReminderSettings();
+  const { user } = useAuth();
+  const { remindersEnabled, toggleReminders, runTest, reminderMsg, registerWhatNextHandler, demoMode, toggleDemoMode } = useReminderSettings();
   const [form,             setForm]             = useState(null);
   const [selectedEvent,    setSelectedEvent]    = useState(null);
   const [saving,           setSaving]           = useState(false);
   const [formError,        setFormError]        = useState("");
+  const [actionError,      setActionError]      = useState(""); // feedback when a delete is rejected
   const [viewMode,         setViewMode]         = useState("clock"); // clock | agenda | timeline
 
   const [selectedDate, setSelectedDate] = useState(() => todayStr());
@@ -31,6 +35,11 @@ const ClockDashboard = () => {
   useEffect(() => {
     fetchEventsByDate(selectedDate);
   }, [selectedDate]);
+
+  // Clear any "can't delete" feedback when the user moves to a different event.
+  useEffect(() => {
+    setActionError("");
+  }, [selectedEvent?.id]);
 
   // While the dashboard is open, the What's-Next modal should open the
   // editable event form (prefilled for the current day) instead of creating
@@ -131,7 +140,7 @@ const ClockDashboard = () => {
       }
       setForm(null);
     } catch (err) {
-      setFormError(err.message || "Failed to save event.");
+      setFormError(payload.id ? permissionErrorMessage(err, "edit") : (err.message || "Couldn’t save the event."));
     } finally {
       setSaving(false);
     }
@@ -139,12 +148,16 @@ const ClockDashboard = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this event?")) return;
+    setActionError("");
     try {
       await deleteEvent(id);
       setForm(null);
       setSelectedEvent(null);
     } catch (err) {
-      console.error("Delete failed:", err.message);
+      // The server rejects deletes on events the user doesn't own. Tell them
+      // why instead of letting the click appear to do nothing.
+      setActionError(permissionErrorMessage(err, "delete"));
+      setForm(null);
     }
   };
 
@@ -162,6 +175,11 @@ const ClockDashboard = () => {
   const humanReadableDate = parseDateLocal(selectedDate).toLocaleDateString("en-US", {
     weekday: "short", month: "short", day: "numeric",
   });
+
+  // Note shown when the selected/edited event was created by someone else
+  // (e.g. assigned by an admin, or sitting in a calendar the user joined).
+  const selectedNote = selectedEvent ? eventOwnershipNote(selectedEvent, user) : "";
+  const formNote     = form?.id ? eventOwnershipNote(form, user) : "";
 
   return (
     <div className="app-shell">
@@ -182,9 +200,21 @@ const ClockDashboard = () => {
                 <div className="form-toggle__dot" />
               </div>
               <span className="reminder-label">🔔 Reminders</span>
-              <button className="btn btn--sm btn--ghost reminder-test" onClick={runTest}>
-                Test
-              </button>
+              {/* Test-only affordance — hidden unless Demo tools is on */}
+              {demoMode && (
+                <button className="btn btn--sm btn--ghost reminder-test" onClick={runTest}>
+                  Test
+                </button>
+              )}
+            </div>
+            <div className="reminder-row">
+              <div
+                onClick={toggleDemoMode}
+                className={`form-toggle form-toggle--sm ${demoMode ? "form-toggle--active" : ""}`}
+              >
+                <div className="form-toggle__dot" />
+              </div>
+              <span className="reminder-label">🧪 Demo tools</span>
             </div>
           </div>
           {reminderMsg && <div className="reminder-status">{reminderMsg}</div>}
@@ -287,6 +317,10 @@ const ClockDashboard = () => {
               <button className="btn--ghost" onClick={() => setSelectedEvent(null)}>×</button>
             </div>
           </div>
+
+          {/* Ownership note + rejection feedback for events the user can't manage */}
+          {selectedNote && <div className="detail-panel__note">{selectedNote}</div>}
+          {actionError && <div className="detail-panel__action-error">{actionError}</div>}
         </div>
       )}
 
@@ -305,6 +339,7 @@ const ClockDashboard = () => {
         onDelete={handleDelete}
         saving={saving}
         error={formError}
+        note={formNote}
       />
     </div>
   );
